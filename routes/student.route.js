@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyJWTForStudent,verifyJWTForTeacher,verifyJWT } from "../middlewares/auth.middleware.js";
-import { allExam, attemptedExams, attendExam, loginUser, logoutUser, myResults, registerUser, removeFromAttemptedExam, searchExams, submitExams, userDashboard } from "../controllers/student.controller.js";
+import { allExam, attemptedExams, attendExam, changePassword, loginUser, logoutUser, myResults, registerUser, removeFromAttemptedExam, searchExams, searchResult, submitExams, updateProfile, userDashboard } from "../controllers/student.controller.js";
 
 const router = Router();
 
@@ -15,6 +15,9 @@ router.route('/remove-from-attempted-exams').post(verifyJWT,verifyJWTForStudent,
 router.route('/submit-exam').post(verifyJWT,verifyJWTForStudent,submitExams);
 router.route('/my-results').get(verifyJWT,verifyJWTForStudent,myResults);
 router.route('/search-exams').get(verifyJWT,verifyJWTForStudent,searchExams);
+router.route('/search-result').get(verifyJWT,verifyJWTForStudent,searchResult);
+router.route('/update-profile').post(verifyJWT,verifyJWTForStudent,updateProfile);
+router.route('/change-password').patch(verifyJWT,verifyJWTForStudent,changePassword);
 
 
 export default router;

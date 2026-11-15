@@ -8,6 +8,7 @@ import { Exam } from "../models/exam.model.js"
 import { Question } from "../models/question.model.js"
 import { Result } from "../models/result.model.js"
 
+
 const generateAccessAndRefreshToken = async (userId) => {
 
     try {
@@ -27,7 +28,7 @@ const generateAccessAndRefreshToken = async (userId) => {
     }
 }
 
-const calculateSocre = async (answers) => {
+const calculateSocre = async (answers, negativeMarks) => {
 
     try {
         let score = 0;
@@ -41,7 +42,7 @@ const calculateSocre = async (answers) => {
             if (question.correctAnswer === ans) {
                 score += 4;
             } else {
-                score -= 1;
+                score -= negativeMarks;
             }
         }
 
@@ -53,7 +54,7 @@ const calculateSocre = async (answers) => {
 }
 
 const generateUsername = (email, rollNumber) => {
-    rollNumber = rollNumber === undefined?"":rollNumber;
+    rollNumber = rollNumber === undefined ? "" : rollNumber;
     let uname = "";
     for (let i = 0; i < email.length; i++) {
         if (email[i] !== '@') {
@@ -63,10 +64,11 @@ const generateUsername = (email, rollNumber) => {
             break;
         }
     }
-    
-    console.log(email,rollNumber,uname,typeof(uname))
+
+    // console.log(email, rollNumber, uname, typeof (uname))
     return uname;
 }
+
 const registerUser = asyncHandler(async (req, res) => {
 
     // getting data
@@ -89,10 +91,15 @@ const registerUser = asyncHandler(async (req, res) => {
 
     // Checking if user already exist 
     const existedUser = await User.findOne({
-        $or: [{ rollNumber }, { email }]
+        role,
+        $or: [
+            ...(rollNumber ? [{ rollNumber }] : []),
+            { email }
+        ]
     })
-
+    // console.log(rollNumber, email)
     if (role === "teacher" && existedUser) {
+        console.log(existedUser)
         throw new ApiError(404, "User with Email already exist")
 
     }
@@ -100,22 +107,32 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User with Email or Roll Number already exist")
 
     }
-    const uname = generateUsername(email,rollNumber);
-    console.log(uname)
+    const uname = generateUsername(email, rollNumber);
+    // console.log(uname)
     // creating user on database
-    const user = await User.create({
-        fullName,
-        email,
-        rollNumber,
-        password,
-        role,
-        username:uname
-    })
-
+    let uu = {};
+    if (role === "teacher") {
+        uu = {
+            fullName,
+            email,
+            password,
+            role,
+            username: uname
+        }
+    } else {
+        uu = {
+            fullName,
+            email,
+            rollNumber,
+            password,
+            role,
+            username: uname
+        }
+    }
+    const user = await User.create(uu);
+    // console.log("hello")
     // removing sensitive information before sending it on response
-    const createdUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    )
+    const createdUser = await User.findById(user._id).select("-password -refreshToken")
     // checking if user is created successfully or not
     if (!createdUser) {
         throw new ApiError(500, "Something went wrong while registering the user")
@@ -145,7 +162,11 @@ const loginUser = asyncHandler(async (req, res) => {
     }
 
     const user = await User.findOne({
-        $or: [{ rollNumber, role }, { email, role }]
+        role,
+        $or: [
+            ...(rollNumber ? [{ rollNumber }] : []),
+            { email }
+        ]
     })
 
     if (!user) {
@@ -268,7 +289,13 @@ const allExam = asyncHandler(async (req, res) => {
         throw new ApiError(404, "You are Not a student");
     }
 
-    const exam = await Exam.find().limit(6).select("-password").populate("createdBy");
+    const exam = await Exam.find()
+    .limit(6)
+    .sort({createdAt:-1})
+    .select("-password")
+    .populate("createdBy");
+    
+    
     return res
         .status(200)
         .json(
@@ -294,8 +321,8 @@ const attendExam = asyncHandler(async (req, res) => {
     const { password } = req.body
     const exam = await Exam.findById(examId)
 
-    if(exam.status === "Inactive"){
-        throw new ApiError(404,"This exam is currently inactive.")
+    if (exam.status === "Deactivated") {
+        throw new ApiError(404, "This exam is currently inactive.")
     }
     const isPasswordValid = await exam.isPasswordCorrect(password)
     if (!isPasswordValid) {
@@ -328,7 +355,7 @@ const attendExam = asyncHandler(async (req, res) => {
 const attemptedExams = asyncHandler(async (req, res) => {
     // const user = req.user;
 
-    const user = await User.findById(req.user._id).select("-password").populate("attemptedExams")
+    const user = await User.findById(req.user._id).select("-password").populate("attemptedExams").limit(5)
     // console.log(user.attemptedExams)
     return res
         .status(200)
@@ -342,7 +369,7 @@ const submitExams = asyncHandler(async (req, res) => {
     const exam = await Exam.findById(examId).select("-password -refreshToken")
 
     // console.log(answers)
-    let score = await calculateSocre(answers);
+    let score = await calculateSocre(answers, exam?.negativeMarks);
     // console.log(score);
     const totalScore = exam.questions.length * 4;
     const result = await Result.create({
@@ -354,7 +381,7 @@ const submitExams = asyncHandler(async (req, res) => {
     })
 
     exam.rankings.push(result._id);
-    exam.totalAttempts = exam.totalAttempts+1;
+    exam.totalAttempts = exam.totalAttempts + 1;
     await exam.save();
 
     if (!result) {
@@ -378,14 +405,22 @@ const removeFromAttemptedExam = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user.attemptedExams, "Successfully removed"))
 })
 
+
 const myResults = asyncHandler(async (req, res) => {
 
-    const results = await Result.find({ student: req.user._id }).populate("exam")
-    // console.log(results)
+    const results = await Result
+    .find({ student: req.user._id })
+    .populate({path:"exam",
+        populate: {
+            path: "createdBy",
+            select: "fullName email"
+        }})
+    .limit(5)
     return res
         .status(200)
         .json(new ApiResponse(200, results, "result successfully fetched"))
 })
+
 
 const searchExams = asyncHandler(async (req, res) => {
     const { query } = req.query
@@ -410,6 +445,84 @@ const searchExams = asyncHandler(async (req, res) => {
 
 })
 
+
+const searchResult = asyncHandler(async (req, res) => {
+    const { query } = req.query
+
+    // console.log("Hello", query)
+    if (!query) {
+        throw new ApiError(404, "Query is required");
+    }
+
+
+    const results = await Result.find({
+        student: req.user._id
+    }).populate({
+        path: "exam",
+        match: {
+            title: {
+                $regex: query,
+                $options: "i"
+            }
+        }
+    })
+        .limit(5);
+
+    const filteredResults = results.filter(
+        result => result.exam !== null
+    );
+    // console.log(results)
+    return res
+        .status(200)
+        .json(new ApiResponse(200, filteredResults, "Result fetched successfully"));
+
+})
+
+
+const updateProfile = asyncHandler(async (req, res) => {
+    const { fullName, email } = req.body
+    const user = await User.findById(req.user._id).select("-password -refreshToken")
+    if (!user) {
+        throw new ApiError(404, "User not found")
+    }
+
+    if (!fullName) {
+        throw new ApiError(404, "Full Name is required")
+    }
+    if (!email) {
+        throw new ApiError(404, "Email is required")
+    }
+    user.fullName = fullName
+    user.email = email
+    const username = generateUsername(email, user.fullName);
+    user.username = username
+    await user.save({ validateBeforeSave: true })
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Profile Updated Successfully"))
+})
+
+
+const changePassword = asyncHandler(async (req, res) => {
+    const { newPassword, currentPassword } = req.body
+
+    const user = await User.findById(req.user._id);
+    const isPasswordvalid = await user.isPasswordCorrect(currentPassword)
+    if (!isPasswordvalid) {
+        throw new ApiError(404, "Incorrect password")
+    }
+
+    user.password = newPassword
+    await user.save({ validateBeforeSave: true });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, {}, "Password changed Successfully"))
+
+})
+
+
 export {
     registerUser,
     loginUser,
@@ -423,5 +536,8 @@ export {
     removeFromAttemptedExam,
     submitExams,
     myResults,
-    searchExams
+    searchExams,
+    updateProfile,
+    changePassword,
+    searchResult
 }

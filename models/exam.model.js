@@ -25,6 +25,10 @@ const examSchema = new mongoose.Schema({
         type:Number,
         default:0
     },
+    questionMarks:{
+        type:Number,
+        default:4
+    },
     totalAttempts:{
         type:Number,
         default:0
@@ -38,6 +42,11 @@ const examSchema = new mongoose.Schema({
     status:{
         type:String,
         default:"Active"
+    },
+    negativeMarks:{
+        type:Number,
+        default:0,
+
     }
 },{
     timestamps: true,
