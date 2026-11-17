@@ -69,6 +69,40 @@ const generateUsername = (email, rollNumber) => {
     return uname;
 }
 
+
+const validatePassword = (password) => {
+
+    if (!password) {
+        return "Password is required";
+    }
+
+    if (password.length < 8) {
+        return "Password must be at least 8 characters long";
+    }
+
+    if (!/[A-Z]/.test(password)) {
+        return "Password must contain at least one uppercase letter";
+    }
+
+    if (!/[a-z]/.test(password)) {
+        return "Password must contain at least one lowercase letter";
+    }
+
+    if (!/[0-9]/.test(password)) {
+        return "Password must contain at least one number";
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/~`;'&]/.test(password)) {
+        return "Password must contain at least one special character";
+    }
+
+    if (/\s/.test(password)) {
+        return "Password must not contain spaces";
+    }
+
+    return null; 
+};
+
 const registerUser = asyncHandler(async (req, res) => {
 
     // getting data
@@ -87,6 +121,11 @@ const registerUser = asyncHandler(async (req, res) => {
     }
     if (password === "") {
         throw new ApiError(400, "Password is required");
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+        throw new ApiError(400, passwordError);
     }
 
     // Checking if user already exist 
@@ -290,12 +329,12 @@ const allExam = asyncHandler(async (req, res) => {
     }
 
     const exam = await Exam.find()
-    .limit(6)
-    .sort({createdAt:-1})
-    .select("-password")
-    .populate("createdBy");
-    
-    
+        .limit(6)
+        .sort({ createdAt: -1 })
+        .select("-password")
+        .populate("createdBy");
+
+
     return res
         .status(200)
         .json(
@@ -409,13 +448,15 @@ const removeFromAttemptedExam = asyncHandler(async (req, res) => {
 const myResults = asyncHandler(async (req, res) => {
 
     const results = await Result
-    .find({ student: req.user._id })
-    .populate({path:"exam",
-        populate: {
-            path: "createdBy",
-            select: "fullName email"
-        }})
-    .limit(5)
+        .find({ student: req.user._id })
+        .populate({
+            path: "exam",
+            populate: {
+                path: "createdBy",
+                select: "fullName email"
+            }
+        })
+        .limit(5)
     return res
         .status(200)
         .json(new ApiResponse(200, results, "result successfully fetched"))
