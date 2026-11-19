@@ -532,6 +532,10 @@ const searchResult = asyncHandler(async (req, res) => {
                 $regex: query,
                 $options: "i"
             }
+        },
+        populate:{
+            path:"createdBy",
+            select:"-password -email -refreshToken"
         }
     })
         .limit(5);
