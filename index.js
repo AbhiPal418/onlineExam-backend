@@ -1,21 +1,21 @@
-// // import express from "express";
-// import connectDB from "./config/db.js";
-// // const app = express();
-// import { app } from "./app.js";
-// import dotenv from "dotenv";
+// import express from "express";
+import connectDB from "./config/db.js";
+// const app = express();
+import { app } from "./app.js";
+import dotenv from "dotenv";
 
-// dotenv.config();
-// connectDB();
+dotenv.config();
+connectDB();
 
-// const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000;
 
-// app.get("/", (req, res) => {
-// 	res.send("Hello, World!");
-// });
+app.get("/", (req, res) => {
+	res.send("Hello, World!");
+});
 
-// app.listen(PORT, () => {
-// 	console.log(`Server is running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+	console.log(`Server is running on port ${PORT}`);
+});
 
 
 
@@ -29,21 +29,21 @@
 // });
 
 
-import dotenv from "dotenv";
-import connectDB from "./config/db.js";
-import app from "./app.js";
+// import dotenv from "dotenv";
+// import connectDB from "./config/db.js";
+// import app from "./app.js";
 
-dotenv.config();
+// dotenv.config();
 
-const PORT = process.env.PORT || 8000;
+// const PORT = process.env.PORT || 8000;
 
-connectDB()
-    .then(() => {
-        app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-        });
-    })
-    .catch((error) => {
-        console.error("Server startup failed:", error);
-        process.exit(1);
-    });
+// connectDB()
+//     .then(() => {
+//         app.listen(PORT, () => {
+//             console.log(`Server running on port ${PORT}`);
+//         });
+//     })
+//     .catch((error) => {
+//         console.error("Server startup failed:", error);
+//         process.exit(1);
+//     });

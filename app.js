@@ -1,35 +1,39 @@
-// import express from 'express';
-// import cors from 'cors';
-// import cookieParser from 'cookie-parser';
+import express from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
-// const app = express();
-// app.use(cors(cors({
-//     origin: process.env.CORS_ORIGIN,
-//     credentials: true
-// })));
+const app = express();
+app.use(cors(cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true
+})));
 
-// app.use(express.json({limit: "16kb"}))
-// app.use(express.urlencoded({extended:true,limit: "16kb"}))
-// app.use(express.static("public"))
-// app.use(cookieParser());
+app.use(express.json({limit: "16kb"}))
+app.use(express.urlencoded({extended:true,limit: "16kb"}))
+app.use(express.static("public"))
+app.use(cookieParser());
 
-// import studentRouter from "./routes/student.route.js"
-// import teacherRouters from "./routes/teacher.route.js"
+import studentRouter from "./routes/student.route.js"
+import teacherRouters from "./routes/teacher.route.js"
 
-// app.use("/api/v1/student",studentRouter);
-// app.use("/api/v1/teacher",teacherRouters);
+app.use("/api/v1/student",studentRouter);
+app.use("/api/v1/teacher",teacherRouters);
 
 
-// app.use((err, req, res, next) => {
+app.use((err, req, res, next) => {
 
-//     res.status(err.statusCode || 500).json({
-//         success: err.success || false,
-//         message: err.message || "Something went wrong",
-//         errors: err.errors || []
-//     });
-// });
+    res.status(err.statusCode || 500).json({
+        success: err.success || false,
+        message: err.message || "Something went wrong",
+        errors: err.errors || []
+    });
+});
 
-// export { app };
+export { app };
+
+
+
+
 
 
 
@@ -94,50 +98,54 @@
 
 
 
-import "dotenv/config";
 
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
 
-import studentRouter from "./routes/student.route.js";
-import teacherRouters from "./routes/teacher.route.js";
 
-const app = express();
 
-app.use(cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true
-}));
+// import "dotenv/config";
 
-// Middlewares
-app.use(express.json({ limit: "16kb" }));
+// import express from "express";
+// import cors from "cors";
+// import cookieParser from "cookie-parser";
 
-app.use(express.urlencoded({
-    extended: true,
-    limit: "16kb"
-}));
+// import studentRouter from "./routes/student.route.js";
+// import teacherRouters from "./routes/teacher.route.js";
 
-app.use(express.static("public"));
-app.use(cookieParser());
+// const app = express();
 
-// Home route
-app.get("/", (req, res) => {
-    res.send("Online Exam Portal Backend is Running!");
-});
+// app.use(cors({
+//     origin: process.env.CORS_ORIGIN,
+//     credentials: true
+// }));
 
-// API routes
-app.use("/api/v1/student", studentRouter);
-app.use("/api/v1/teacher", teacherRouters);
+// // Middlewares
+// app.use(express.json({ limit: "16kb" }));
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    res.status(err.statusCode || 500).json({
-        success: err.success || false,
-        message: err.message || "Something went wrong",
-        errors: err.errors || []
-    });
-});
+// app.use(express.urlencoded({
+//     extended: true,
+//     limit: "16kb"
+// }));
 
-export { app };
-export default app;
+// app.use(express.static("public"));
+// app.use(cookieParser());
+
+// // Home route
+// app.get("/", (req, res) => {
+//     res.send("Online Exam Portal Backend is Running!");
+// });
+
+// // API routes
+// app.use("/api/v1/student", studentRouter);
+// app.use("/api/v1/teacher", teacherRouters);
+
+// // Error handling middleware
+// app.use((err, req, res, next) => {
+//     res.status(err.statusCode || 500).json({
+//         success: err.success || false,
+//         message: err.message || "Something went wrong",
+//         errors: err.errors || []
+//     });
+// });
+
+// export { app };
+// export default app;
