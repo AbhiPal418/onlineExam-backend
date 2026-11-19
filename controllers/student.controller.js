@@ -100,7 +100,7 @@ const validatePassword = (password) => {
         return "Password must not contain spaces";
     }
 
-    return null; 
+    return null;
 };
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -221,7 +221,14 @@ const loginUser = asyncHandler(async (req, res) => {
     // console.log(user._id)
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id)
 
-    const loggedinUser = await User.findById(user._id).select("-password -refreshToken")
+    // const loggedinUser = await User.findById(user._id).select("-password -refreshToken")
+    // Exclude sensitive information
+    const loggedinUser = user.toObject();
+
+    delete loggedinUser.password;
+    delete loggedinUser.refreshToken;
+    delete loggedinUser.__v;
+
 
     const options = {
         httpOnly: true,
@@ -332,7 +339,10 @@ const allExam = asyncHandler(async (req, res) => {
         .limit(6)
         .sort({ createdAt: -1 })
         .select("-password")
-        .populate("createdBy");
+        .populate({
+            path: "createdBy",
+            select: "-password -refreshToken"
+        });
 
 
     return res
@@ -360,6 +370,10 @@ const attendExam = asyncHandler(async (req, res) => {
     const { password } = req.body
     const exam = await Exam.findById(examId)
 
+    if (!exam) {
+        throw new ApiError(400, "This exam Doesn't exist")
+    }
+
     if (exam.status === "Deactivated") {
         throw new ApiError(404, "This exam is currently inactive.")
     }
@@ -367,7 +381,8 @@ const attendExam = asyncHandler(async (req, res) => {
     if (!isPasswordValid) {
         throw new ApiError(404, "Incorrect Password")
     }
-    const student = await User.findById(req.user._id).select("-password -refreshToken")
+    // const student = await User.findById(req.user._id).select("-password -refreshToken")
+    const student = req.user
     // console.log(student.attemptedExams)
     const alreadyAttempted = student.attemptedExams.some(
         (attempt) => attempt.toString() === examId
@@ -378,9 +393,13 @@ const attendExam = asyncHandler(async (req, res) => {
     }
     student.attemptedExams.push(examId)
 
-    const examData = await Exam.findById(examId).select("-password").populate("questions")
+    // const examData = await Exam.findById(examId).select("-password").populate("questions")
+    await exam.populate("questions");
 
+    const examData = exam.toObject();
 
+    delete examData.password;
+    delete examData.__v;
 
     await student.save({ validateBeforeSave: true })
 
@@ -392,9 +411,9 @@ const attendExam = asyncHandler(async (req, res) => {
 })
 
 const attemptedExams = asyncHandler(async (req, res) => {
-    // const user = req.user;
+    const user = req.user;
 
-    const user = await User.findById(req.user._id).select("-password").populate("attemptedExams").limit(5)
+    // const user = await User.findById(req.user._id).select("-password").populate("attemptedExams").limit(5)
     // console.log(user.attemptedExams)
     return res
         .status(200)
@@ -404,7 +423,8 @@ const attemptedExams = asyncHandler(async (req, res) => {
 const submitExams = asyncHandler(async (req, res) => {
 
     const { answers, examId } = req.body;
-    const student = await User.findById(req.user._id).select("-password -refreshToken")
+    const student = req.user;
+    // const student = await User.findById(req.user._id).select("-password -refreshToken")
     const exam = await Exam.findById(examId).select("-password -refreshToken")
 
     // console.log(answers)
@@ -412,7 +432,7 @@ const submitExams = asyncHandler(async (req, res) => {
     // console.log(score);
     const totalScore = exam.questions.length * 4;
     const result = await Result.create({
-        student,
+        student:student._id,
         exam: examId,
         scoreObtained: score,
         totalScore,
@@ -522,7 +542,9 @@ const searchResult = asyncHandler(async (req, res) => {
 
 const updateProfile = asyncHandler(async (req, res) => {
     const { fullName, email } = req.body
-    const user = await User.findById(req.user._id).select("-password -refreshToken")
+    // const user = await User.findById(req.user._id).select("-password -refreshToken")
+    const user = req.user;
+
     if (!user) {
         throw new ApiError(404, "User not found")
     }
@@ -535,7 +557,7 @@ const updateProfile = asyncHandler(async (req, res) => {
     }
     user.fullName = fullName
     user.email = email
-    const username = generateUsername(email, user.fullName);
+    const username = generateUsername(email, user.rollNumber);
     user.username = username
     await user.save({ validateBeforeSave: true })
 
@@ -548,7 +570,8 @@ const updateProfile = asyncHandler(async (req, res) => {
 const changePassword = asyncHandler(async (req, res) => {
     const { newPassword, currentPassword } = req.body
 
-    const user = await User.findById(req.user._id);
+    // const user = await User.findById(req.user._id);
+    const user = req.user;
     const isPasswordvalid = await user.isPasswordCorrect(currentPassword)
     if (!isPasswordvalid) {
         throw new ApiError(404, "Incorrect password")
