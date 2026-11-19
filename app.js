@@ -56,14 +56,14 @@ app.use(cors({
 }));
 
 // Connect to MongoDB before handling API requests
-// app.use(async (req, res, next) => {
-//     try {
-//         await connectDB();
-//         next();
-//     } catch (error) {
-//         next(error);
-//     }
-// });
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
 
 // Middlewares
 app.use(express.json({ limit: "16kb" }));
