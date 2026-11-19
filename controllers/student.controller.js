@@ -413,6 +413,13 @@ const attendExam = asyncHandler(async (req, res) => {
 const attemptedExams = asyncHandler(async (req, res) => {
     const user = req.user;
 
+    await user.populate({
+        path: "attemptedExams",
+        options: {
+            sort: { createdAt: -1 },
+            limit: 5
+        }
+    });
     // const user = await User.findById(req.user._id).select("-password").populate("attemptedExams").limit(5)
     // console.log(user.attemptedExams)
     return res
@@ -432,7 +439,7 @@ const submitExams = asyncHandler(async (req, res) => {
     // console.log(score);
     const totalScore = exam.questions.length * 4;
     const result = await Result.create({
-        student:student._id,
+        student: student._id,
         exam: examId,
         scoreObtained: score,
         totalScore,
