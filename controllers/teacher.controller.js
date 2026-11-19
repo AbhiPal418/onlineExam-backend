@@ -114,10 +114,10 @@ const createExams = asyncHandler(async (req, res) => {
         exam.questions.push(quest._id);
     }
     const createdExamI = await Exam.create(exam);
-    const user = await User.findById(req.user._id)
-    user.createdExams.push(createdExamI._id);
+    // const user = await User.findById(req.user._id)
+    teacher.createdExams.push(createdExamI._id);
     // console.log(user)
-    await user.save()
+    await teacher.save()
     const createdexam = await Exam.findById(createdExamI._id).select("-password")
     // console.log(createdexam)
     if (!createdexam) {
@@ -165,10 +165,10 @@ const editExam = asyncHandler(async (req, res) => {
     const { examId } = req.params
     const teacher = req.user
 
-    const ex = await Exam.find({ createdBy: teacher._id, _id: examData._id })
+    const existedExam = await Exam.findOne({ createdBy: teacher._id, _id: examId })
 
-    if (!ex) {
-        throw new ApiError(400, "You cannot edit this exam")
+    if (!existedExam) {
+        throw new ApiError(404, "Exam not found or you cannot edit this exam");
     }
 
     if (!examData.title) {
@@ -178,19 +178,22 @@ const editExam = asyncHandler(async (req, res) => {
     //     throw new ApiError(404, "Password is required");
     // }
 
-    if (!examData.timeLimit) {
-        throw new ApiError(404, "Please set a Time Limit");
+    if (!examData.timeLimit || examData.timeLimit <= 0) {
+        throw new ApiError(404, "Please set a valid Time Limit");
     }
-    if (!examData.questionMarks) {
-        throw new ApiError(404, "Add marks per question");
-    }
-    if (examData.negativeMarks >= examData.questionMarks) {
-        throw new ApiError(404, "Negative marks should be less than marks per question");
+    if (
+        !Number.isFinite(examData.questionMarks) ||
+        examData.questionMarks <= 0
+    ) {
+        throw new ApiError(400, "Please enter valid marks per question");
     }
 
-    const existedExam = await Exam.findById(examId);
-    if (!existedExam) {
-        throw new ApiError(404, `Exam created by ${teacher.fullName} and with this title doesn't existed`);
+    if (
+        !Number.isFinite(examData.negativeMarks) ||
+        examData.negativeMarks < 0 ||
+        examData.negativeMarks >= examData.questionMarks
+    ) {
+        throw new ApiError(400, "Invalid negative marks");
     }
 
 
@@ -200,8 +203,8 @@ const editExam = asyncHandler(async (req, res) => {
         existedExam.password = examData?.password ? examData.password : existedExam.password,
         existedExam.createdBy = teacher,
         existedExam.totalQuestion = questions.length,
-        existedExam.negativeMarks = examData?.negativeMarks <= examData?.questionMarks ? examData?.negativeMarks : examData.questionMarks
-
+        existedExam.negativeMarks = examData?.negativeMarks <= examData?.questionMarks ? examData?.negativeMarks : examData.questionMarks,
+        existedExam.questionMarks = examData.questionMarks
 
     // const createdexamI = await Exam.findById(exam._id)
 
@@ -211,12 +214,27 @@ const editExam = asyncHandler(async (req, res) => {
         if (!question.question) {
             throw new ApiError(404, `Please add the ${i + 1} no question`)
         }
-        if (question.options.length < 4) {
-            throw new ApiError(404, `Please add all options for question no ${i + 1}`)
-        }
+        // if (question.options.length < 4) {
+        //     throw new ApiError(404, `Please add all options for question no ${i + 1}`)
+        // }
         // console.log("Hello",question.correctAnswer)
-        if (!question.correctAnswer) {
-            throw new ApiError(404, `Please select a correct answer for question no ${i + 1}`)
+        // if (!question.correctAnswer) {
+        //     throw new ApiError(404, `Please select a correct answer for question no ${i + 1}`)
+        // }
+        if (
+            !Array.isArray(question.options) ||
+            question.options.length !== 4 ||
+            question.options.some(option => !option?.trim())
+        ) {
+            throw new ApiError(400, `Please add all four options for question no ${i + 1}`);
+        }
+
+        if (
+            !Number.isInteger(question.correctAnswer) ||
+            question.correctAnswer < 0 ||
+            question.correctAnswer >= question.options.length
+        ) {
+            throw new ApiError(400, `Please select a valid answer for question no ${i + 1}`);
         }
         const quest = await Question.create({
             question: question.question,
@@ -228,14 +246,22 @@ const editExam = asyncHandler(async (req, res) => {
     }
     await existedExam.save();
 
-    const createdexam = await Exam.findById(examId).select("-password")
-    // console.log(createdexam)
-    if (!createdexam) {
-        throw new ApiError(404, "Something Went wrong");
-    }
-    return res
-        .status(200)
-        .json(new ApiResponse(201, createdexam, "Exam edited successfully"));
+    
+    const updatedExam = existedExam.toObject();
+
+    delete updatedExam.password;
+    delete updatedExam.__v;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            updatedExam,
+            "Exam edited successfully"
+        )
+    )
+    // return res
+    //     .status(200)
+    //     .json(new ApiResponse(201, existedExam, "Exam edited successfully"));
 })
 
 
@@ -258,19 +284,19 @@ const changeExamStatus = asyncHandler(async (req, res) => {
 
     const { examId } = req.params
 
-    const exam = await Exam.findOne({createdBy:req.user._id,_id:examId})
+    const exam = await Exam.findOne({ createdBy: req.user._id, _id: examId })
     if (!exam) {
         throw new ApiError(404, "Exam not existed ");
-        
+
     }
-    
+
     if (exam.status === "Active") {
         exam.status = "Deactivated";
     } else {
         exam.status = "Active"
     }
-    
-    await exam.save({validateBeforeSave:true});
+
+    await exam.save({ validateBeforeSave: true });
     // console.log("Hello",exam.status)
 
 
@@ -335,7 +361,7 @@ const changePassword = asyncHandler(async (req, res) => {
 
     }
 
-    const user = await User.findById(req.user._id).select("-refreshToken")
+    const user = req.user;
 
     const isPasswordvalid = await user.isPasswordCorrect(currentPassword)
     if (!isPasswordvalid) {
@@ -356,7 +382,9 @@ const updateTeacherProfile = asyncHandler(async (req, res) => {
 
     const { fullName, email } = req.body
 
-    const user = await User.findById(req.user._id).select("-password -refreshToken")
+    // const user = await User.findById(req.user._id).select("-password -refreshToken")
+    const user = req.user
+
 
     if (!user) {
         throw new ApiError(404, "User not found")
