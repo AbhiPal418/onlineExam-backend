@@ -581,8 +581,8 @@ const updateProfile = asyncHandler(async (req, res) => {
 const changePassword = asyncHandler(async (req, res) => {
     const { newPassword, currentPassword } = req.body
 
-    // const user = await User.findById(req.user._id);
-    const user = req.user;
+    const user = await User.findById(req.user._id);
+    // const user = req.user;
     const isPasswordvalid = await user.isPasswordCorrect(currentPassword)
     if (!isPasswordvalid) {
         throw new ApiError(404, "Incorrect password")

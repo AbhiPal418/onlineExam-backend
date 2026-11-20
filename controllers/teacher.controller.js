@@ -98,13 +98,23 @@ const createExams = asyncHandler(async (req, res) => {
         if (!question.question) {
             throw new ApiError(404, `Please add the ${i + 1} no question`)
         }
-        if (question.options.length < 4) {
-            throw new ApiError(404, `Please add all options for question no ${i + 1}`)
+        if (
+            !Array.isArray(question.options) ||
+            question.options.length !== 4 ||
+            question.options.some(option => !option?.trim())
+        ) {
+            throw new ApiError(400, `Please add all four options for question no ${i + 1}`);
         }
-        // console.log("Hello val",typeof(question.correctAnswer))
-        if (!question.correctAnswer) {
-            throw new ApiError(404, `Please select a correct answer for question no ${i + 1}`)
+
+
+        if (
+            !Number.isInteger(question.correctAnswer) ||
+            question.correctAnswer < 0 ||
+            question.correctAnswer >= question.options.length
+        ) {
+            throw new ApiError(400, `Please select a correct answer for question no ${i + 1}`);
         }
+
         const quest = await Question.create({
             question: question.question,
             options: question.options,
@@ -246,7 +256,7 @@ const editExam = asyncHandler(async (req, res) => {
     }
     await existedExam.save();
 
-    
+
     const updatedExam = existedExam.toObject();
 
     delete updatedExam.password;
@@ -357,11 +367,11 @@ const changePassword = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Please enter new password")
     }
     if (newPassword === currentPassword) {
-        throw new ApiError(400, "new and old password should be diffrent")
+        throw new ApiError(400, "New and old password should be diffrent")
 
     }
 
-    const user = req.user;
+    const user = await User.findById(req.user._id).select("-refreshToken");
 
     const isPasswordvalid = await user.isPasswordCorrect(currentPassword)
     if (!isPasswordvalid) {
